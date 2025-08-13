@@ -1,0 +1,64 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>타임드 투표 커뮤니티 (로그인 필수)</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">🗳️ 타임드 투표 커뮤니티</div>
+  <nav>
+    <button id="logout" class="btn ghost">로그아웃</button>
+    <a href="/new.html" class="btn">새 주제 만들기</a>
+  </nav>
+</header>
+
+<main class="container">
+  <h1>최신 주제</h1>
+  <div id="list" class="list"></div>
+</main>
+
+<script>
+async function ensureAuth(){
+  const me = await fetch('/api/auth/me');
+  if (!me.ok) { location.href='/login.html'; return; }
+}
+ensureAuth();
+
+async function fetchTopics(){
+  const res = await fetch('/api/topics');
+  if (res.status===401) { location.href='/login.html'; return; }
+  const data = await res.json();
+  const list = document.getElementById('list');
+  if (!data.topics.length) {
+    list.innerHTML = '<div class="empty">아직 생성된 주제가 없습니다. 첫 주제를 만들어보세요!</div>';
+    return;
+  }
+  list.innerHTML = data.topics.map(t => `
+    <a class="card" href="/t/${t.id}">
+      <div class="row">
+        <h3>${escapeHtml(t.title)}</h3>
+        <span class="badge ${t.status}">${t.status==='open'?'진행중':'마감'}</span>
+      </div>
+      <p>${escapeHtml(t.desc||'')}</p>
+      <div class="row small">
+        <span>마감: ${new Date(t.deadline).toLocaleString()}</span>
+        <span>공개: ${new Date(t.revealAt).toLocaleString()}</span>
+        <span>투표수: ${t.totalVotes}</span>
+      </div>
+    </a>
+  `).join('');
+}
+function escapeHtml(s){ return s?.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])) }
+fetchTopics();
+
+document.getElementById('logout').onclick = async () => {
+  await fetch('/api/auth/logout', { method:'POST' });
+  location.href = '/login.html';
+};
+</script>
+</body>
+</html>

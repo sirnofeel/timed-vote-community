@@ -1,0 +1,54 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>로그인 - 타임드 투표 커뮤니티</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main class="auth">
+  <div class="card">
+    <h1>로그인</h1>
+    <div class="row">
+      <input id="loginName" placeholder="닉네임" maxlength="30">
+      <input id="loginPw" type="password" placeholder="비밀번호" maxlength="100">
+      <button id="btnLogin" class="btn">로그인</button>
+    </div>
+    <div class="note">계정이 없다면 아래에서 회원가입하세요.</div>
+    <hr style="margin:16px 0; opacity:.3">
+    <h2>회원가입</h2>
+    <div class="row">
+      <input id="regName" placeholder="닉네임(2~30자)" maxlength="30">
+      <input id="regPw" type="password" placeholder="비밀번호(6자 이상)" maxlength="100">
+      <button id="btnRegister" class="btn ghost">가입</button>
+    </div>
+    <div id="msg" class="note"></div>
+  </div>
+</main>
+
+<script>
+async function tryLogin(){
+  const username = document.getElementById('loginName').value.trim();
+  const password = document.getElementById('loginPw').value;
+  const res = await fetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username, password }) });
+  const data = await res.json();
+  if (!res.ok) { setMsg(data.error||'로그인 실패'); return; }
+  location.href = '/';
+}
+async function tryRegister(){
+  const username = document.getElementById('regName').value.trim();
+  const password = document.getElementById('regPw').value;
+  const res = await fetch('/api/auth/register', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username, password }) });
+  const data = await res.json();
+  if (!res.ok) { setMsg(data.error||'가입 실패'); return; }
+  setMsg('가입 완료! 이제 위에서 로그인하세요.');
+}
+function setMsg(t){ document.getElementById('msg').textContent = t; }
+
+document.getElementById('btnLogin').onclick = tryLogin;
+document.getElementById('btnRegister').onclick = tryRegister;
+</script>
+</body>
+</html>

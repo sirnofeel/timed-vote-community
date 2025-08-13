@@ -1,0 +1,10 @@
+
+services:
+  - type: web
+    name: timed-vote-community
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    envVars: []

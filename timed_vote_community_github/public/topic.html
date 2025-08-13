@@ -1,0 +1,114 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>주제 상세</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">🗳️ 주제 상세</div>
+  <nav><a href="/" class="btn ghost">목록</a></nav>
+</header>
+
+<main class="container">
+  <div id="card" class="card"></div>
+</main>
+
+<script>
+async function ensureAuth(){ const me = await fetch('/api/auth/me'); if (!me.ok) location.href='/login.html'; }
+ensureAuth();
+
+const id = location.pathname.split('/').pop();
+let topic;
+
+async function load() {
+  const res = await fetch(`/api/topics/${id}`);
+  const data = await res.json();
+  if (!res.ok) { document.getElementById('card').innerHTML = '<p>주제를 찾을 수 없습니다.</p>'; return; }
+  topic = data.topic;
+  render();
+}
+function render() {
+  const closed = topic.status === 'closed';
+  const deadline = new Date(topic.deadline);
+  const revealAt = new Date(topic.revealAt);
+  const now = new Date();
+  const revealed = topic.results != null;
+  const leftMs = deadline - now;
+  const leftRevealMs = revealAt - now;
+
+  let html = `
+    <h2>${escapeHtml(topic.title)}</h2>
+    ${topic.desc ? `<p class="muted">${escapeHtml(topic.desc)}</p>`: ''}
+    <div class="row small">
+      <span>마감: ${deadline.toLocaleString()}</span>
+      <span>결과 공개: ${revealAt.toLocaleString()}</span>
+      <span class="badge ${closed?'closed':'open'}">${closed?'마감':'진행중'}</span>
+      ${!revealed && closed ? '<span class="badge wait">공개 대기중</span>': ''}
+    </div>
+  `;
+
+  if (!closed) {
+    html += `<div class="countdown">⏳ 남은 시간: <b id="left">계산중...</b></div>`;
+    html += `<div class="options">` +
+      topic.options.map((o, i) => `<button class="btn option" data-i="${i}">${escapeHtml(o.text)}</button>`).join('') +
+      `</div>` +
+      `<div class="muted small">한 번만 투표할 수 있습니다. 결과는 마감 <b>10분 후</b> 공개됩니다.</div>`;
+  } else if (!revealed) {
+    html += `<div class="countdown">⏳ 결과 공개까지: <b id="leftReveal">계산중...</b></div>`;
+    html += `<div class="muted small">마감되었습니다. 결과는 공개 시간에 자동으로 표시됩니다.</div>`;
+  } else {
+    html += `<h3>결과</h3>`;
+    const total = topic.results.reduce((a,b)=>a+b,0) || 1;
+    html += `<div class="bars">` +
+      topic.options.map((o,i) => {
+        const v = topic.results[i];
+        const pct = Math.round(v*100/total);
+        return `<div class="bar"><div class="barLabel">${escapeHtml(o.text)} <span>${v}표 (${pct}%)</span></div><div class="barFill" style="width:${pct}%"></div></div>`;
+      }).join('') +
+      `</div>` +
+      `<div class="muted small">총 투표수: ${total}</div>`;
+  }
+  document.getElementById('card').innerHTML = html;
+
+  if (!closed) {
+    document.querySelectorAll('.option').forEach(b => b.onclick = vote);
+    tick(deadline, 'left', () => load());
+  } else if (!revealed) {
+    tick(revealAt, 'leftReveal', () => load());
+  }
+}
+async function vote(e) {
+  const i = Number(e.currentTarget.dataset.i);
+  const res = await fetch(`/api/topics/${id}/vote`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ option: i }) });
+  const data = await res.json();
+  if (!res.ok) { alert(data.error||'오류'); return; }
+  alert('투표 완료! 결과는 마감 10분 후 공개됩니다.');
+  load();
+}
+function escapeHtml(s){ return s?.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])) }
+
+function tick(targetDate, elId, onDone){
+  function fmt(ms){
+    if (ms<=0) return '00:00:00';
+    const s = Math.floor(ms/1000);
+    const h = String(Math.floor(s/3600)).padStart(2,'0');
+    const m = String(Math.floor((s%3600)/60)).padStart(2,'0');
+    const sec = String(s%60).padStart(2,'0');
+    return `${h}:${m}:${sec}`;
+  }
+  const timer = setInterval(() => {
+    const left = targetDate - new Date();
+    const el = document.getElementById(elId);
+    if (el) el.textContent = fmt(left);
+    if (left <= 0) { clearInterval(timer); onDone(); }
+  }, 1000);
+}
+
+load();
+</script>
+</body>
+</html>

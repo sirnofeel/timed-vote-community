@@ -1,0 +1,68 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>새 주제 만들기</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">🗳️ 새 주제 만들기</div>
+  <nav><a href="/" class="btn ghost">목록</a></nav>
+</header>
+
+<main class="container">
+  <form id="form" class="card form">
+    <label>제목</label>
+    <input id="title" maxlength="120" placeholder="예: 다음 번 오프모임 날짜 투표" required>
+
+    <label>설명 (선택)</label>
+    <textarea id="desc" rows="4" maxlength="2000" placeholder="주제에 대한 간단한 설명을 적어주세요."></textarea>
+
+    <label>선택지</label>
+    <div id="opts"></div>
+    <div class="row">
+      <button id="addOpt" type="button" class="btn ghost">선택지 추가</button>
+      <span class="muted small">최소 2개</span>
+    </div>
+
+    <label>마감 시각</label>
+    <input id="deadline" type="datetime-local" required>
+    <div class="muted small">결과는 마감 <b>10분 후</b> 공개됩니다.</div>
+
+    <button class="btn" type="submit">주제 생성</button>
+  </form>
+</main>
+
+<script>
+async function ensureAuth(){ const me = await fetch('/api/auth/me'); if (!me.ok) location.href='/login.html'; }
+ensureAuth();
+
+const optsBox = document.getElementById('opts');
+function addOpt(value='') {
+  const div = document.createElement('div');
+  div.className = 'row';
+  div.innerHTML = `<input class="opt" placeholder="선택지" maxlength="80" value="${value.replace(/"/g,'&quot;')}" />
+                   <button class="btn danger" type="button">삭제</button>`;
+  div.querySelector('button').onclick = () => div.remove();
+  optsBox.appendChild(div);
+}
+document.getElementById('addOpt').onclick = () => addOpt();
+addOpt(); addOpt();
+
+document.getElementById('form').onsubmit = async (e) => {
+  e.preventDefault();
+  const title = document.getElementById('title').value.trim();
+  const desc = document.getElementById('desc').value.trim();
+  const options = [...document.querySelectorAll('.opt')].map(i=>i.value.trim()).filter(Boolean);
+  const deadline = document.getElementById('deadline').value;
+  const res = await fetch('/api/topics', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ title, desc, options, deadline }) });
+  const data = await res.json();
+  if (!res.ok) { alert(data.error||'오류'); return; }
+  location.href = '/t/' + data.topic.id;
+};
+</script>
+</body>
+</html>
